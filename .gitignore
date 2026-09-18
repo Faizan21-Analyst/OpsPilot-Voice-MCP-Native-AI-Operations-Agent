@@ -5,6 +5,7 @@ __pycache__/
 ops_env
 # C extensions
 *.so
+data
 
 # Distribution / packaging
 .Python
