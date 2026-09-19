@@ -14,34 +14,29 @@ class DocumentReranker:
 
         logger.info("reranker_model_loaded",model=model_name,)
 
-    def rerank(self,query: str,documents: list[dict],top_k: int = 5,) -> list[dict]:
-
+    def rerank(self,query: str,documents: list[dict],top_k: int = 5,min_score: float = 0.3,  ) -> list[dict]:
         if not documents:
             return []
 
-        pairs = [
-            [query, document["content"]]
-            for document in documents
-        ]
-
+        pairs = [[query, document["content"]] for document in documents]
         scores = self.model.predict(pairs)
 
         reranked = []
-
         for document, score in zip(documents, scores):
             result = document.copy()
             result["rerank_score"] = float(score)
             reranked.append(result)
 
-        reranked.sort(
-            key=lambda x: x["rerank_score"],
-            reverse=True,
-        )
+        reranked.sort(key=lambda x: x["rerank_score"], reverse=True)
+
+        # NEW: drop anything below the relevance floor
+        filtered = [r for r in reranked if r["rerank_score"] >= min_score]
 
         logger.info(
             "documents_reranked",
             candidates=len(documents),
-            returned=min(top_k, len(reranked)),
+            above_threshold=len(filtered),
+            returned=min(top_k, len(filtered)),
         )
 
-        return reranked[:top_k]
+        return filtered[:top_k]

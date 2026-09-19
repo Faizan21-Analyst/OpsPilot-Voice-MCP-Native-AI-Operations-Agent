@@ -14,6 +14,10 @@ class GroqSettings(BaseSettings):
 class DatabaseSettings(BaseSettings):
     url: str = "sqlite+aiosqlite:///./data/opspilot.db"
 
+class MCPServersSettings(BaseSettings):
+    docs_url: str = "http://127.0.0.1:8001/mcp"
+    sql_url: str = "http://127.0.0.1:8002/mcp"
+    ops_url: str = "http://127.0.0.1:8003/mcp"
 
 class AppSettings(BaseSettings):
     env: str = "dev"

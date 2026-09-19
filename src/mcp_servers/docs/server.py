@@ -63,4 +63,4 @@ async def search_policy_docs(query: str, top_k: int = 5) -> list[dict]:
         return []
     
 if __name__ == "__main__":
-    mcp.run()
+    mcp.run(transport="streamable-http", port=8001)
