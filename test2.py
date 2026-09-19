@@ -1,22 +1,12 @@
-import asyncio
-from src.mcp_client.manager import MCPClientManager
+from src.permissions.policy_engine import PolicyEngine
 
-async def main():
-    manager = MCPClientManager({
-        "docs": "http://127.0.0.1:8001/mcp",
-        "sql": "http://127.0.0.1:8002/mcp",
-        "ops": "http://127.0.0.1:8003/mcp",
-    })
-    print(await manager.health_check_all())
-    tools = await manager.discover_tools()
-    for t in tools:
-        print(t["server"], "->", t["name"])
+def test_admin_only_denies_employee():
+    engine = PolicyEngine("C:/Users/ligio/OneDrive/Desktop/OpsPilot-Voice-MCP-Native-AI-Operations-Agent/policies/tool.yaml")
+    decision = engine.evaluate("revoke_access_tool", employee_id="E002", requested_by="E001", requester_role="employee")
+    assert decision.allowed is False
 
-    # test a real call
-    result = await manager.call_tool("docs", "search_policy_docs", {"query": "how to install prometheus python client"})
-    result2 = await manager.call_tool("sql", "get_employee_tool",  {'employee_id':"E002"})
-
-    print(result)
-    print(result2)
-
-asyncio.run(main())
+def test_destructive_requires_approval():
+    engine = PolicyEngine("C:/Users/ligio/OneDrive/Desktop/OpsPilot-Voice-MCP-Native-AI-Operations-Agent/policies/tool.yaml")
+    decision = engine.evaluate("reset_password_tool", employee_id="E001", requested_by="E001", requester_role="employee")
+    assert decision.allowed is True
+    assert decision.requires_approval is True

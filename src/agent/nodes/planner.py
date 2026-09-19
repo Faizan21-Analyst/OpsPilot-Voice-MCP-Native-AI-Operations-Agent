@@ -36,8 +36,19 @@ def build_planner_node(llm: BaseLLMProvider):
 
     async def planner_node(state: AgentState) -> dict:
         tools_schema = _convert_tools(state["available_tools"])
+        principal = state["principal"]
+        system_message = {
+        "role": "system",
+        "content": (
+            f"You are OpsPilot, an IT helpdesk assistant. "
+            f"The current user is employee_id='{principal['user_id']}', role='{principal['role']}'. "
+            f"When the user refers to 'my account', 'my password', 'me', etc., use their "
+            f"employee_id '{principal['user_id']}' as the employee_id argument — do not ask them for it. "
+            f"Only ask for an employee_id if they're asking about someone else and haven't named who."
+        ),
+    }
 
-        api_messages = []
+        api_messages = [system_message]
         for msg in state["messages"]:
             if isinstance(msg, dict):
                 role = msg.get("role", "user")

@@ -1,0 +1,40 @@
+terms: []
+
+tools:
+  - tool: search_policy_docs 
+    risk: READ
+    auto_approve: true
+
+  - tool: get_employee_tool
+    risk: READ
+    auto_approve: true
+
+  - tool: search_employees_tool
+    risk: READ
+    auto_approve: true
+    constraints:
+      - type: row_limit
+        max: 20
+
+  - tool: get_tickets_for_employee_tool
+    risk: READ
+    auto_approve: true
+
+  - tool: get_ticket_tool
+    risk: READ
+    auto_approve: true
+
+  - tool: create_ticket_tool
+    risk: WRITE
+    auto_approve: true
+    scope: self_or_admin
+
+  - tool: reset_password_tool
+    risk: DESTRUCTIVE
+    auto_approve: false
+    scope: self_or_admin
+
+  - tool: revoke_access_tool
+    risk: DESTRUCTIVE
+    auto_approve: false
+    scope: admin_only

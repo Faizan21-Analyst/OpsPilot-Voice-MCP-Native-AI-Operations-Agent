@@ -6,6 +6,16 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
 load_dotenv()
 
+class GeminiSettings(BaseSettings):
+    api_key: str
+    model: str = "gemini/gemini-2.5-flash"
+
+
+class LiteLLMSettings(BaseSettings):
+    num_retries: int = 2
+    timeout_s: float = 20.0
+
+
 class GroqSettings(BaseSettings):
     api_key: str = Field(..., description="Groq API key")
     model: str = "llama-3.3-70b-versatile"
@@ -23,12 +33,14 @@ class AppSettings(BaseSettings):
     env: str = "dev"
     log_level: str = "INFO"
     groq: GroqSettings
-    database: DatabaseSettings
-
+    gemini: GeminiSettings
+    litellm: LiteLLMSettings
+    database: DatabaseSettings = Field(default_factory=DatabaseSettings)
+    mcp_servers: MCPServersSettings = Field(default_factory=MCPServersSettings)
 
     model_config = SettingsConfigDict(
         env_file=".env",
-        env_nested_delimiter="__",   
+        env_nested_delimiter="__",
         extra="ignore",
     )
 
