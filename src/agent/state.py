@@ -1,4 +1,5 @@
 from typing import TypedDict, Annotated
+import operator
 
 from langgraph.graph.message import add_messages
 
@@ -13,3 +14,10 @@ class AgentState(TypedDict):
     session_id: str
     principal: Principal
     available_tools: list[dict]
+
+    blocked: bool
+
+    tools_called_this_turn: Annotated[
+        list[str],
+        operator.add,
+    ]
