@@ -16,20 +16,21 @@ class LiteLLMProvider(BaseLLMProvider):
         self._router = Router(
             model_list=[
                 {
-                    "model_name": "primary",
+                    "model_name": "primary-groq",
                     "litellm_params": {
                         "model": f"groq/{groq.model}",
                         "api_key": groq.api_key,
                     },
                 },
                 {
-                    "model_name": "secondary",
+                    "model_name": "primary-gemini",
                     "litellm_params": {
                         "model": gemini.model,
                         "api_key": gemini.api_key,
                     },
                 },
             ],
+            fallbacks=[{"primary-groq": ["primary-gemini"]}],
             num_retries=litellm_settings.num_retries,
             timeout=litellm_settings.timeout_s,
         )
@@ -41,7 +42,7 @@ class LiteLLMProvider(BaseLLMProvider):
     async def generate(self, messages, tools=None) -> LLMResponse:
         try:
             response = await self._router.acompletion(
-                model="primary",
+                model="primary-groq",   # entry point; router falls to primary-gemini on failure
                 messages=messages,
                 tools=tools,
             )
@@ -52,7 +53,6 @@ class LiteLLMProvider(BaseLLMProvider):
 
         choice = response.choices[0]
         raw_tool_calls = choice.message.tool_calls or []
-
         tool_calls = [
             ToolCall(id=tc.id, name=tc.function.name, arguments=tc.function.arguments)
             for tc in raw_tool_calls
@@ -66,7 +66,7 @@ class LiteLLMProvider(BaseLLMProvider):
                 "prompt_tokens": response.usage.prompt_tokens,
                 "completion_tokens": response.usage.completion_tokens,
             },
-            provider=response.get("model", "unknown"),  
+            provider=response.get("model", "unknown"),
             model=response.get("model", "unknown"),
         )
 
