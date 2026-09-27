@@ -1,7 +1,11 @@
 import time
 import litellm
 from litellm.router import Router
-from litellm.exceptions import RateLimitError as LiteLLMRateLimitError, APIError as LiteLLMAPIError
+from litellm.exceptions import (
+    RateLimitError as LiteLLMRateLimitError,
+    APIError as LiteLLMAPIError,
+    BadRequestError as LiteLLMBadRequestError,
+)
 
 from src.interfaces.llm import BaseLLMProvider, LLMResponse, ToolCall, ProviderHealth
 from src.core.exceptions import RateLimitError, ProviderDownError
@@ -9,6 +13,12 @@ from src.core.config import GroqSettings, GeminiSettings, LiteLLMSettings
 from src.core.logging import get_logger
 
 log = get_logger(__name__)
+
+# Groq occasionally emits a malformed <tool_call> block instead of a
+# clean function call (litellm surfaces this as a BadRequestError with
+# code "tool_use_failed"). It's a transient generation glitch, not a
+# real bad request, so we retry it a couple of times before giving up.
+MALFORMED_TOOL_CALL_RETRIES = 2
 
 
 class LiteLLMProvider(BaseLLMProvider):
@@ -40,16 +50,44 @@ class LiteLLMProvider(BaseLLMProvider):
         return "litellm"
 
     async def generate(self, messages, tools=None) -> LLMResponse:
-        try:
-            response = await self._router.acompletion(
-                model="primary-groq",   # entry point; router falls to primary-gemini on failure
-                messages=messages,
-                tools=tools,
+        response = None
+        last_error = None
+
+        for attempt in range(MALFORMED_TOOL_CALL_RETRIES + 1):
+
+            try:
+                response = await self._router.acompletion(
+                    model="primary-groq",   # entry point; router falls to primary-gemini on failure
+                    messages=messages,
+                    tools=tools,
+                )
+                break
+
+            except LiteLLMRateLimitError as e:
+                raise RateLimitError(f"LiteLLM rate limit: {e}") from e
+
+            except LiteLLMBadRequestError as e:
+                if (
+                    "tool_use_failed" in str(e)
+                    and attempt < MALFORMED_TOOL_CALL_RETRIES
+                ):
+                    last_error = e
+                    log.warning(
+                        "malformed_tool_call_retry",
+                        attempt=attempt + 1,
+                        error=str(e)[:300],
+                    )
+                    continue
+                raise ProviderDownError(f"LiteLLM provider error: {e}") from e
+
+            except LiteLLMAPIError as e:
+                raise ProviderDownError(f"LiteLLM provider error: {e}") from e
+
+        if response is None:
+            raise ProviderDownError(
+                f"LiteLLM provider error after "
+                f"{MALFORMED_TOOL_CALL_RETRIES} retries: {last_error}"
             )
-        except LiteLLMRateLimitError as e:
-            raise RateLimitError(f"LiteLLM rate limit: {e}") from e
-        except LiteLLMAPIError as e:
-            raise ProviderDownError(f"LiteLLM provider error: {e}") from e
 
         choice = response.choices[0]
         raw_tool_calls = choice.message.tool_calls or []

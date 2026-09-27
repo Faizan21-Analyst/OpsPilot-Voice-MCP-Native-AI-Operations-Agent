@@ -19,7 +19,7 @@ async def main():
         "ops": "http://127.0.0.1:8003/mcp",
     })
 
-    policy = PolicyEngine("policies/tool.yaml")
+    policy = PolicyEngine("policies/tools.yaml")
 
     agent = build_agent_graph(llm, manager, policy)
 

@@ -1,0 +1,146 @@
+{
+  "run_name": "eval-20260925-191843",
+  "timestamp": "2026-09-25T19:22:18.722231",
+  "deterministic_results": [
+    {
+      "id": "noans_001",
+      "type": "no_answer_expected",
+      "passed": false,
+      "detail": "got error results, expected 0"
+    },
+    {
+      "id": "noans_002",
+      "type": "no_answer_expected",
+      "passed": false,
+      "detail": "got error results, expected 0"
+    },
+    {
+      "id": "noans_003",
+      "type": "no_answer_expected",
+      "passed": false,
+      "detail": "got error results, expected 0"
+    },
+    {
+      "id": "noans_004",
+      "type": "no_answer_expected",
+      "passed": false,
+      "detail": "got error results, expected 0"
+    },
+    {
+      "id": "tool_001",
+      "type": "tool_selection",
+      "passed": true,
+      "detail": "called={'search_policy_docs'}, missing_expected=set(), forbidden_violated=set()"
+    },
+    {
+      "id": "tool_002",
+      "type": "tool_selection",
+      "passed": false,
+      "detail": "called=set(), missing_expected={'reset_password_tool'}, forbidden_violated=set()"
+    },
+    {
+      "id": "tool_003",
+      "type": "tool_selection",
+      "passed": true,
+      "detail": "called={'revoke_access_tool'}, missing_expected=set(), forbidden_violated=set()"
+    },
+    {
+      "id": "tool_004",
+      "type": "tool_selection",
+      "passed": true,
+      "detail": "called={'search_employees_tool'}, missing_expected=set(), forbidden_violated=set()"
+    },
+    {
+      "id": "tool_005",
+      "type": "tool_selection",
+      "passed": true,
+      "detail": "called={'search_policy_docs'}, missing_expected=set(), forbidden_violated=set()"
+    },
+    {
+      "id": "tool_006",
+      "type": "tool_selection",
+      "passed": true,
+      "detail": "called={'create_ticket_tool'}, missing_expected=set(), forbidden_violated=set()"
+    },
+    {
+      "id": "tool_007",
+      "type": "tool_selection",
+      "passed": true,
+      "detail": "called=set(), missing_expected=set(), forbidden_violated=set()"
+    },
+    {
+      "id": "tool_008",
+      "type": "tool_selection",
+      "passed": false,
+      "detail": "called=set(), missing_expected={'create_ticket_tool'}, forbidden_violated=set()"
+    },
+    {
+      "id": "perm_001",
+      "type": "permission",
+      "passed": true,
+      "detail": "got allowed=False, requires_approval=False, reason=scope_violation: admin_only tool, requester_role=employee"
+    },
+    {
+      "id": "perm_002",
+      "type": "permission",
+      "passed": true,
+      "detail": "got allowed=True, requires_approval=True, reason=requires_human_approval"
+    },
+    {
+      "id": "perm_003",
+      "type": "permission",
+      "passed": true,
+      "detail": "got allowed=False, requires_approval=False, reason=scope_violation: admin_only tool, requester_role=employee"
+    },
+    {
+      "id": "perm_004",
+      "type": "permission",
+      "passed": false,
+      "detail": "got allowed=True, requires_approval=True, reason=requires_human_approval"
+    },
+    {
+      "id": "perm_005",
+      "type": "permission",
+      "passed": true,
+      "detail": "got allowed=True, requires_approval=True, reason=requires_human_approval"
+    },
+    {
+      "id": "perm_006",
+      "type": "permission",
+      "passed": true,
+      "detail": "got allowed=False, requires_approval=False, reason=scope_violation: 'E003' cannot act on 'E010'"
+    },
+    {
+      "id": "eff_001",
+      "type": "efficiency",
+      "passed": true,
+      "detail": "tool_calls=0 (max 2), tries=1 (max 2), calls=[]"
+    },
+    {
+      "id": "eff_002",
+      "type": "efficiency",
+      "passed": true,
+      "detail": "tool_calls=1 (max 2), tries=2 (max 2), calls=['search_policy_docs']"
+    },
+    {
+      "id": "eff_003",
+      "type": "efficiency",
+      "passed": false,
+      "detail": "tool_calls=1 (max 1), tries=2 (max 1), calls=['search_employees_tool']"
+    },
+    {
+      "id": "eff_004",
+      "type": "efficiency",
+      "passed": true,
+      "detail": "tool_calls=0 (max 0), tries=1 (max 1), calls=[]"
+    }
+  ],
+  "category_rates": {
+    "no_answer_expected": 0.0,
+    "tool_selection": 0.75,
+    "permission": 0.8333333333333334,
+    "efficiency": 0.75
+  },
+  "rag_scores": {},
+  "overall_score": 0.6363636363636364
+}

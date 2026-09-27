@@ -32,6 +32,7 @@ class GroqProvider(BaseLLMProvider):
                 model=self._settings.model,
                 messages=messages,
                 tools=tools,
+                
             )
         except GroqRateLimitError as e:
             log.warning("groq_rate_limited", error=str(e))

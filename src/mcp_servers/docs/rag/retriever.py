@@ -1,3 +1,5 @@
+import uuid
+
 from qdrant_client import QdrantClient, models
 
 from src.core.logging import get_logger
@@ -14,25 +16,14 @@ class QdrantRetriever:
         vector_size: int = 768,
     ):
         self.collection_name = collection_name
-
-        self.client = QdrantClient(
-            url=url,
-            api_key=api_key,
-        )
-
+        self.client = QdrantClient(url=url, api_key=api_key)
         self._create_collection(vector_size)
 
     def _create_collection(self, vector_size: int):
-
         collections = self.client.get_collections().collections
-
-        existing = {
-            collection.name
-            for collection in collections
-        }
+        existing = {collection.name for collection in collections}
 
         if self.collection_name not in existing:
-
             self.client.create_collection(
                 collection_name=self.collection_name,
                 vectors_config={
@@ -47,33 +38,25 @@ class QdrantRetriever:
                     )
                 },
             )
-
-            logger.info(
-                "hybrid_collection_created",
-                collection=self.collection_name,
-            )
-
+            logger.info("hybrid_collection_created", collection=self.collection_name)
         else:
-            logger.info(
-                "hybrid_collection_exists",
-                collection=self.collection_name,
-            )
+            logger.info("hybrid_collection_exists", collection=self.collection_name)
 
-    def index_documents(
-        self,
-        chunks: list,
-        dense_vectors: list[list[float]],
-    ):
-
+    def index_documents(self, chunks: list, dense_vectors: list[list[float]]):
         points = []
 
-        for idx, (chunk, dense_vector) in enumerate(
-            zip(chunks, dense_vectors)
-        ):
-
+        for chunk, dense_vector in zip(chunks, dense_vectors):
             points.append(
                 models.PointStruct(
-                    id=idx,
+                    # FIX: previously id=idx, an integer restarting at 0 on
+                    # every call to index_documents(). Since each source
+                    # file is indexed via its own call, every file's first
+                    # few chunks landed on the SAME low integer IDs as
+                    # every other file's first few chunks — and Qdrant
+                    # upsert overwrites on ID collision. That was silently
+                    # destroying previously-indexed documents' points.
+                    # uuid4 guarantees no collisions across calls/files.
+                    id=str(uuid.uuid4()),
                     vector={
                         "dense": dense_vector,
                         "sparse": models.Document(
@@ -88,10 +71,7 @@ class QdrantRetriever:
                 )
             )
 
-        self.client.upsert(
-            collection_name=self.collection_name,
-            points=points,
-        )
+        self.client.upsert(collection_name=self.collection_name, points=points)
 
         logger.info(
             "hybrid_documents_indexed",
@@ -106,40 +86,26 @@ class QdrantRetriever:
         limit: int = 5,
         candidate_limit: int = 20,
     ):
-
         results = self.client.query_points(
             collection_name=self.collection_name,
-
             prefetch=[
                 models.Prefetch(
                     query=dense_query_vector,
                     using="dense",
                     limit=candidate_limit,
                 ),
-
                 models.Prefetch(
-                    query=models.Document(
-                        text=query,
-                        model="Qdrant/bm25",
-                    ),
+                    query=models.Document(text=query, model="Qdrant/bm25"),
                     using="sparse",
                     limit=candidate_limit,
                 ),
             ],
-
-            query=models.FusionQuery(
-                fusion=models.Fusion.RRF,
-            ),
-
+            query=models.FusionQuery(fusion=models.Fusion.RRF),
             limit=limit,
             with_payload=True,
         )
 
-        logger.info(
-            "hybrid_search_completed",
-            query=query,
-            results=len(results.points),
-        )
+        logger.info("hybrid_search_completed", query=query, results=len(results.points))
 
         return [
             {
