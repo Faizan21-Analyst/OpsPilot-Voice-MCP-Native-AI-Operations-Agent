@@ -10,21 +10,17 @@ from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.task import PipelineParams
 from pipecat.pipeline.worker import PipelineWorker
 from pipecat.workers.runner import WorkerRunner
-
 from src.channels.voice.devices import select_audio_devices
 from src.channels.voice.session import VADBridge, UtteranceAggregator
 from src.channels.voice.agent_bridge import AgentBridgeBargeIn, ErrorLogger
 
-
-async def build_voice_pipeline(settings, agent, manager, principal: dict, session_id: str):
+async def build_voice_pipeline(settings, agent, manager, principal: dict, session_id: str, transport):
     """
-    Assembles the full voice pipeline: device detection, VAD, STT,
-    the agent bridge (barge-in capable), TTS, and audio output.
-
-    Returns (pipeline, worker, runner) — caller is responsible for
-    calling runner.run().
+    Assembles the pipeline around a transport that's passed in — the
+    caller decides whether that's a local mic (devices.py) or a browser
+    WebSocket (voice_ws.py). Everything else (VAD, STT, agent bridge,
+    TTS) is identical either way.
     """
-
     vad_analyzer = SileroVADAnalyzer(
         sample_rate=16000,
         params=VADParams(
@@ -42,21 +38,6 @@ async def build_voice_pipeline(settings, agent, manager, principal: dict, sessio
     )
 
     vad_bridge = VADBridge(vad_controller)
-
-    try:
-        input_device_index, input_sample_rate, output_device_index = select_audio_devices()
-    except RuntimeError as e:
-        raise RuntimeError(f"Voice pipeline audio setup failed: {e}") from e
-
-    transport = LocalAudioTransport(
-        LocalAudioTransportParams(
-            audio_in_enabled=True,
-            audio_out_enabled=True,
-            input_device_index=input_device_index,
-            output_device_index=output_device_index,
-            audio_in_sample_rate=input_sample_rate,
-        )
-    )
 
     stt_settings = GroqSTTSettings(
         model="whisper-large-v3",
@@ -119,9 +100,29 @@ async def build_voice_pipeline(settings, agent, manager, principal: dict, sessio
     print("=" * 70)
     print("VOICE PIPELINE READY")
     print("=" * 70)
-    print(f"Input device : index {input_device_index} @ {input_sample_rate} Hz")
-    print(f"Output device: index {output_device_index}")
+    print(f"Session: {session_id}")
     print("=" * 70)
     print()
 
     return pipeline, worker, runner
+
+
+async def build_local_voice_pipeline(settings, agent, manager, principal: dict, session_id: str):
+    """Wraps build_voice_pipeline with a LocalAudioTransport for the
+    local mic/speaker mode (run_voice.py)."""
+    input_device_index, input_sample_rate, output_device_index = select_audio_devices()
+
+    transport = LocalAudioTransport(
+        LocalAudioTransportParams(
+            audio_in_enabled=True,
+            audio_out_enabled=True,
+            input_device_index=input_device_index,
+            output_device_index=output_device_index,
+            audio_in_sample_rate=input_sample_rate,
+        )
+    )
+
+    print(f"Input device : index {input_device_index} @ {input_sample_rate} Hz")
+    print(f"Output device: index {output_device_index}")
+
+    return await build_voice_pipeline(settings, agent, manager, principal, session_id, transport)

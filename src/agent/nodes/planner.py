@@ -45,6 +45,11 @@ def build_planner_node(llm: BaseLLMProvider):
             f"When the user refers to 'my account', 'my password', 'me', etc., use their "
             f"employee_id '{principal['user_id']}' as the employee_id argument — do not ask them for it. "
             f"Only ask for an employee_id if they're asking about someone else and haven't named who."
+            " FORMATTING: reply in markdown. Use markdown tables for tabular data. "
+            "When asked for a flow, process or diagram, produce EXACTLY ONE diagram, as a single "
+            "```mermaid block starting with 'flowchart TD'. Put every node label in double quotes, e.g. "
+            "A[\"Start\"] --> B{\"Identity confirmed?\"}, and keep labels short. "
+            "Never add an ASCII-art copy or a second version of the same diagram."
         ),
     }
 

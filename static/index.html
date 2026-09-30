@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>OpsPilot</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080d1a; --panel: #0d1424; --panel-2: #121b30; --line: #1c2740;
+    --text: #e8edf7; --muted: #7d8aa8; --blue: #2f8bff; --cyan: #4cc9ff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { font-family: Inter, system-ui, sans-serif; background: var(--bg); color: var(--text); }
+  button, input { font-family: inherit; font-size: 15px; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+
+  /* brand + orb */
+  .logo { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 22px; }
+  .logo-mark { width: 36px; height: 36px; border-radius: 50%; border: 4px solid var(--blue);
+    border-right-color: transparent; box-shadow: 0 0 14px rgba(47,139,255,.6); }
+  .orb { position: relative; width: 220px; height: 220px; border-radius: 50%; display: grid; place-items: center;
+    background: radial-gradient(circle at 50% 45%, #10245a 0%, #0a1330 70%);
+    border: 3px solid var(--blue);
+    box-shadow: 0 0 0 10px rgba(47,139,255,.12), 0 0 40px 8px rgba(47,139,255,.55), inset 0 0 40px rgba(76,201,255,.25);
+    animation: glow 3.2s ease-in-out infinite; }
+  .orb span { font-size: 30px; font-weight: 700; letter-spacing: -.5px; }
+  @keyframes glow { 50% { box-shadow: 0 0 0 16px rgba(47,139,255,.08), 0 0 60px 14px rgba(47,139,255,.7), inset 0 0 50px rgba(76,201,255,.35); } }
+
+  /* login */
+  #login-box { min-height: 100vh; }
+  .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;
+    background: radial-gradient(ellipse at 50% 20%, #10204a 0%, var(--bg) 60%); }
+  .login-card { width: 100%; max-width: 400px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 18px; padding: 32px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+  .login-card .orb { width: 110px; height: 110px; margin: 0 auto 20px;
+    box-shadow: 0 0 0 6px rgba(47,139,255,.12), 0 0 28px 4px rgba(47,139,255,.55), inset 0 0 24px rgba(76,201,255,.25); }
+  .login-card .orb span { font-size: 15px; }
+  .login-card h2 { margin: 0 0 4px; text-align: center; font-size: 22px; }
+  .login-card p { margin: 0 0 20px; text-align: center; color: var(--muted); font-size: 14px; }
+  .login-card input { width: 100%; padding: 13px 14px; margin-top: 10px; background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: 10px; }
+  .login-card input:focus { border-color: var(--blue); outline: none; box-shadow: 0 0 0 3px rgba(47,139,255,.25); }
+  .login-card button { width: 100%; margin-top: 16px; padding: 13px; border: 0; border-radius: 10px; font-weight: 600;
+    background: linear-gradient(180deg, #3d97ff, #1f74e6); box-shadow: 0 6px 18px rgba(47,139,255,.35); }
+  #login-error { color: #ff6b6b; margin-top: 10px; font-size: 14px; min-height: 18px; text-align: center; }
+
+  /* app shell */
+  #chat-box { height: 100vh; overflow: hidden; }
+  .app { display: grid; grid-template-columns: 240px 1fr 380px; grid-template-rows: minmax(0, 1fr); height: 100vh; overflow: hidden; }
+  .sidebar { background: var(--panel); border-right: 1px solid var(--line); padding: 24px 16px; }
+  .sidebar .logo { padding: 0 8px 28px; }
+  .nav a { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 10px; color: var(--muted);
+    text-decoration: none; margin-bottom: 6px; font-weight: 500; }
+  .nav a.on { background: var(--panel-2); color: var(--text); }
+  .nav i { width: 16px; height: 16px; border: 2px solid currentColor; border-radius: 4px; }
+
+  .main { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; padding: 0 28px 24px; }
+  .topbar { height: 72px; display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--line); margin: 0 -28px 24px; padding: 0 28px; }
+  .topbar h1 { margin: 0; font-size: 22px; font-weight: 600; }
+  .avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--panel-2); border: 1px solid var(--line); }
+
+  .history { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  .history h3 { margin: 0; padding: 18px 24px; font-size: 18px; font-weight: 600; border-bottom: 1px solid var(--line); }
+  #transcript { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 24px; scroll-behavior: smooth; }
+  .msg-user, .msg-bot { margin: 0 0 14px; padding: 14px 16px; border-radius: 12px; line-height: 1.5; font-size: 16px; }
+  .msg-user { background: transparent; color: var(--text); padding-left: 0; }
+  .msg-bot { color: var(--text); background: var(--panel-2); border: 1.5px solid var(--blue);
+    box-shadow: 0 0 18px rgba(47,139,255,.3); }
+  #transcript:empty::before { content: "Your conversation appears here. Say something or type a command."; color: var(--muted); }
+
+  #text-input-row { display: flex !important; align-items: center; gap: 10px; margin-top: 16px; padding: 10px 10px 10px 18px;
+    background: var(--panel); border: 1.5px solid var(--blue); border-radius: 14px; box-shadow: 0 0 20px rgba(47,139,255,.25); }
+  #text-input { flex: 1; min-width: 0; background: transparent; border: 0; outline: none; padding: 8px 0; }
+  #text-input::placeholder { color: var(--muted); }
+  .icon-btn { width: 40px; height: 40px; border-radius: 50%; border: 0; background: transparent; color: var(--cyan); font-size: 18px; }
+  .send-btn { padding: 11px 22px; border: 0; border-radius: 10px; font-weight: 600; background: linear-gradient(180deg, #3d97ff, #1f74e6); }
+
+  /* rich (markdown) bot messages */
+  .msg-bot .who { font-weight: 600; color: var(--cyan); margin-bottom: 6px; }
+  .md { overflow-wrap: anywhere; }
+  .md > *:first-child { margin-top: 0; } .md > *:last-child { margin-bottom: 0; }
+  .md p, .md ul, .md ol { margin: 8px 0; }
+  .md ul, .md ol { padding-left: 22px; }
+  .md h1, .md h2, .md h3, .md h4 { margin: 14px 0 6px; line-height: 1.3; }
+  .md h1 { font-size: 20px; } .md h2 { font-size: 18px; } .md h3, .md h4 { font-size: 16px; }
+  .md a { color: var(--cyan); }
+  .md hr { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
+  .md blockquote { margin: 8px 0; padding: 4px 12px; border-left: 3px solid var(--blue); color: var(--muted); }
+  .md code { background: rgba(255,255,255,.08); padding: 2px 6px; border-radius: 6px; font-family: ui-monospace, Consolas, monospace; font-size: 14px; }
+  .md pre { background: #070c18; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; overflow-x: auto; margin: 10px 0; }
+  .md pre code { background: none; padding: 0; white-space: pre; line-height: 1.45; }
+  .tablewrap { overflow-x: auto; margin: 10px 0; border: 1px solid var(--line); border-radius: 10px; }
+  .md table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+  .md th, .md td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .md th { background: rgba(47,139,255,.16); font-weight: 600; white-space: nowrap; }
+  .md tr:last-child td { border-bottom: 0; }
+  .md tbody tr:nth-child(even) td { background: rgba(255,255,255,.03); }
+  .diagram { overflow-x: auto; background: #0a1226; border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin: 10px 0; text-align: center; }
+  .diagram svg { max-width: 100%; height: auto; }
+  .diagram, .diagram * { overflow-wrap: normal; word-break: normal; }
+  .diagram .nodeLabel, .diagram .edgeLabel, .diagram text { color: #e8edf7; }
+  #diag { display: none; white-space: pre-wrap; font-size: 13px; line-height: 1.45; color: #ffc97a; background: rgba(255,170,60,.08);
+    border: 1px solid rgba(255,170,60,.4); border-radius: 10px; padding: 10px 12px; max-width: 340px; }
+
+  /* voice panel */
+  .voice { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px; padding: 24px;
+    background: radial-gradient(ellipse at 50% 35%, #0f1f4a 0%, var(--panel) 70%); border-left: 1px solid var(--line); }
+  #status { font-size: 20px; font-weight: 600; text-align: center; color: var(--text); margin: 0; }
+  .wave { display: flex; align-items: center; gap: 4px; height: 56px; }
+  .wave b { width: 4px; border-radius: 2px; background: linear-gradient(var(--cyan), var(--blue)); height: 10px; animation: bar 1.2s ease-in-out infinite; }
+  @keyframes bar { 50% { height: 48px; } }
+  #mode-toggle { display: flex; gap: 8px; width: 100%; max-width: 280px; }
+  #mode-toggle button { flex: 1; padding: 11px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); font-weight: 500; }
+  #mode-toggle button.active-mode { background: var(--blue); border-color: var(--blue); color: #fff; box-shadow: 0 0 16px rgba(47,139,255,.5); }
+
+  @media (max-width: 1000px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; min-height: 100vh; }
+    .sidebar { display: none; }
+    .voice { order: -1; border-left: 0; border-bottom: 1px solid var(--line); gap: 16px; }
+    .voice .orb { width: 150px; height: 150px; }
+    .main { height: 75vh; }
+  }
+  @media (prefers-reduced-motion: reduce) { .orb, .wave b { animation: none; } }
+</style>
+</head>
+<body>
+
+<div id="login-box">
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="orb"><span>OpsPilot</span></div>
+      <h2>Sign in to OpsPilot</h2>
+      <p>Talk to your infrastructure.</p>
+      <input id="username" placeholder="Username" autocomplete="username">
+      <input id="password" type="password" placeholder="Password" autocomplete="current-password">
+      <button onclick="login()">Log in</button>
+      <div id="login-error"></div>
+    </div>
+  </div>
+</div>
+
+<div id="chat-box">
+  <div class="app">
+    <aside class="sidebar">
+      <div class="logo"><div class="logo-mark"></div>OpsPilot</div>
+      <nav class="nav">
+        <a href="#" class="on"><i></i>Dashboard</a>
+        <a href="#"><i></i>Services</a>
+        <a href="#"><i></i>Logs</a>
+        <a href="#"><i></i>Settings</a>
+      </nav>
+    </aside>
+
+    <section class="main">
+      <div class="topbar"><h1>Dashboard</h1><div class="avatar"></div></div>
+      <div class="history">
+        <h3>Dialogue history</h3>
+        <div id="transcript"></div>
+      </div>
+      <div id="text-input-row">
+        <input id="text-input" placeholder='Type your query or command here... (or say something like "redeploy payment gateway")' onkeydown="if(event.key==='Enter') sendText()">
+        <button class="icon-btn" onclick="setMode('voice')" aria-label="Switch to voice">🎙</button>
+        <button class="send-btn" onclick="sendText()">Send</button>
+      </div>
+    </section>
+
+    <aside class="voice">
+      <div class="orb"><span>OpsPilot</span></div>
+      <div id="status">Not connected</div>
+      <div id="diag"></div>
+      <div class="wave" aria-hidden="true">
+        <b style="animation-delay:0s"></b><b style="animation-delay:.1s"></b><b style="animation-delay:.2s"></b>
+        <b style="animation-delay:.3s"></b><b style="animation-delay:.4s"></b><b style="animation-delay:.5s"></b>
+        <b style="animation-delay:.6s"></b><b style="animation-delay:.7s"></b><b style="animation-delay:.8s"></b>
+        <b style="animation-delay:.9s"></b><b style="animation-delay:1s"></b><b style="animation-delay:1.1s"></b>
+      </div>
+      <div id="mode-toggle">
+        <button id="voice-btn" class="active-mode" onclick="setMode('voice')">🎙 Voice</button>
+        <button id="text-btn" onclick="setMode('text')">⌨ Text</button>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script type="module">
+  // Voice libraries are loaded on demand inside connect(), so a blocked CDN can never break login or text chat.
+  
+
+  // Drop any stale service worker / caches left behind by earlier versions of this page.
+  if ("serviceWorker" in navigator) navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => r.unregister())).catch(() => {});
+  if (window.caches) caches.keys().then((ks) => ks.forEach((k) => caches.delete(k))).catch(() => {});
+
+  let token = null;
+  let client = null;
+  let mode = "voice";
+
+  // Attached to window because this script is running as an ES module
+  window.login = async function() {
+    const username = document.getElementById("username").value;
+    const password = document.getElementById("password").value;
+    const errorBox = document.getElementById("login-error");
+    errorBox.textContent = "";
+
+    try {
+      const resp = await fetch("/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      if (!resp.ok) {
+        const body = await resp.json();
+        errorBox.textContent = body.detail || "Login failed";
+        return;
+      }
+      const data = await resp.json();
+      token = data.access_token;
+      document.getElementById("login-box").style.display = "none";
+      document.getElementById("chat-box").style.display = "block";
+      await connect();
+    } catch (e) {
+      console.error("LOGIN/CONNECT ERROR:", e);
+      errorBox.textContent = "Could not reach server: " + (e.message || e);
+    }
+  };
+
+  async function connect() {
+    showDiag("");
+    const pre = await preflight();
+    if (pre.msgs.length) showDiag(pre.msgs.join("\n\n"));
+    if (pre.fatal) { setStatus("Voice unavailable (see notes below)"); return; }
+
+    let PipecatClient, WebSocketTransport, ProtobufFrameSerializer;
+    try {
+      ({ PipecatClient } = await import("https://esm.sh/@pipecat-ai/client-js@1.13.1"));
+      ({ WebSocketTransport, ProtobufFrameSerializer } = await import("https://esm.sh/@pipecat-ai/websocket-transport@1.7.2?deps=@pipecat-ai/client-js@1.13.1"));
+    } catch (e) {
+      console.error("VOICE LIBRARY LOAD ERROR:", e);
+      showDiag("Could not load the voice library from esm.sh (" + (e.message || e) + ").\n\nAn ad-blocker, privacy extension or network filter in THIS browser profile is most likely blocking it. Disable extensions for this site (or allow esm.sh) and reload. Text chat still works meanwhile.");
+      setStatus("Voice unavailable, text chat only");
+      return;
+    }
+
+    const wsProtocol = location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${wsProtocol}//${location.host}/ws/voice?token=${encodeURIComponent(token)}`;
+    
+    client = new PipecatClient({
+      transport: new WebSocketTransport({ serializer: new ProtobufFrameSerializer() }),
+      enableMic: true,
+      enableCam: false,
+      callbacks: {
+        onUserTranscript: (data) => {
+          console.log("USER TRANSCRIPT:", data);
+          if (data.final) handleUserFinal(data.text);
+        },
+        onBotTranscript: (data) => {
+          console.log("BOT TRANSCRIPT:", data);
+          pendingUser = []; // bot has replied, so any unmatched user fragments are settled
+          appendMessage("bot", data.text);
+        },
+        onServerMessage: (raw) => {
+          console.log("SERVER MESSAGE:", raw);
+          const msg = raw && raw.type ? raw : raw && raw.data;
+          if (msg && msg.type === "agent_answer") {
+            pendingUser = []; // bot has answered, so any unmatched user fragments are settled
+            appendBotRich(msg.text);
+          }
+        },
+        onDisconnected: () => setStatus("Disconnected"),
+        onError: (e) => setStatus("Error: " + e.message),
+      },
+    });
+    
+    setStatus("Connecting...");
+    try {
+      await client.connect({ wsUrl });
+    } catch (e) {
+      console.error("PIPECAT CONNECT ERROR:", e);
+      showDiag("Voice connection error: " + ((e && e.name ? e.name + ": " : "") + (e && e.message ? e.message : e)) + "\n\nOpen DevTools (F12) > Console for details.");
+      const denied = e && (e.name === "NotAllowedError" || /permission|denied|notallowed/i.test(String(e.message)));
+      setStatus(denied
+        ? "Microphone blocked. Allow the mic for this site (lock icon in the address bar), then reload."
+        : "Connection failed: " + (e.message || e));
+      return;
+    }
+    setStatus("Connected — voice mode active");
+  }
+
+  window.setMode = function(newMode) {
+    mode = newMode;
+    document.getElementById("voice-btn").classList.toggle("active-mode", mode === "voice");
+    document.getElementById("text-btn").classList.toggle("active-mode", mode === "text");
+    // The text row stays visible in both modes (it is always usable); text mode just mutes the mic and focuses the box.
+    if (mode === "text") document.getElementById("text-input").focus();
+
+    if (client) {
+      if (mode === "text") {
+        client.enableMic(false);
+        setStatus("Text mode — mic muted");
+      } else {
+        client.enableMic(true);
+        setStatus("Voice mode active");
+      }
+    }
+  };
+
+  // Completely replaced sendText to bypass Pipecat and hit the REST endpoint directly
+  window.sendText = async function() {
+    const input = document.getElementById("text-input");
+    const text = input.value.trim();
+    if (!text) return;
+    
+    appendMessage("user", text);
+    input.value = "";
+    
+    try {
+      const resp = await fetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+        body: JSON.stringify({ message: text, session_id: "web-text-session" }),
+      });
+      const data = await resp.json();
+      
+      if (data.status === "approval_required") {
+        const ok = confirm(`Approve this action?\n\n${JSON.stringify(data.approval, null, 2)}`);
+        const resumeResp = await fetch("/chat/resume", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+          body: JSON.stringify({ session_id: "web-text-session", approved: ok }),
+        });
+        const resumeData = await resumeResp.json();
+        appendBotRich(resumeData.answer);
+        return;
+      }
+      
+      appendBotRich(data.answer);
+    } catch (err) {
+      appendMessage("bot", "Error communicating with server: " + err.message);
+    }
+  };
+
+  // --- User transcript de-duplication -----------------------------------------
+  // The server emits each STT fragment AND then one merged utterance. Show the
+  // fragments live, then collapse them into a single bubble when the merged
+  // text arrives.
+  let pendingUser = [];
+  const norm = (s) => (s || "").replace(/\s+/g, " ").trim();
+
+  function handleUserFinal(raw) {
+    const text = norm(raw);
+    if (!text) return;
+
+    if (pendingUser.length && text === norm(pendingUser.map((p) => p.text).join(" "))) {
+      const [first, ...rest] = pendingUser;
+      rest.forEach((p) => p.el.remove());
+      first.el.textContent = "You: " + text;
+      pendingUser = [];
+      return;
+    }
+
+    const el = appendMessage("user", text);
+    pendingUser.push({ el, text });
+  }
+
+  function appendMessage(role, text) {
+    const div = document.createElement("div");
+    div.className = role === "user" ? "msg-user" : "msg-bot";
+    div.textContent = (role === "user" ? "You: " : "OpsPilot: ") + text;
+    const box = document.getElementById("transcript");
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+    return div;
+  }
+
+  // --- Rich (markdown) rendering: tables, lists, code, mermaid flow diagrams -----
+  // Loaded dynamically so a CDN hiccup degrades to plain text instead of breaking the page.
+  let markedLib = null, purifyLib = null, mermaidLib = null;
+  const libsReady = Promise.all([
+    import("https://esm.sh/marked@12.0.2"),
+    import("https://esm.sh/dompurify@3.1.6"),
+  ]).then(([m, p]) => {
+    markedLib = m.marked;
+    purifyLib = p.default;
+  }).catch((e) => console.error("Markdown libraries failed to load, using plain text:", e));
+
+  async function loadMermaid() {
+    if (mermaidLib) return mermaidLib;
+    const mod = await import("https://esm.sh/mermaid@10.9.1");
+    mermaidLib = mod.default;
+    mermaidLib.initialize({
+      startOnLoad: false,
+      securityLevel: "strict",
+      theme: "base",
+      // SVG <text> labels instead of HTML foreignObject labels: immune to page CSS, so text is never blank.
+      flowchart: { htmlLabels: false, curve: "basis", useMaxWidth: true },
+      themeVariables: {
+        darkMode: true,
+        background: "#0a1226",
+        fontFamily: "Inter, system-ui, sans-serif",
+        fontSize: "14px",
+        primaryColor: "#12306b",
+        primaryTextColor: "#e8edf7",
+        primaryBorderColor: "#2f8bff",
+        secondaryColor: "#0d1424",
+        tertiaryColor: "#121b30",
+        lineColor: "#4cc9ff",
+        textColor: "#e8edf7",
+        edgeLabelBackground: "#0a1226",
+      },
+    });
+    return mermaidLib;
+  }
+
+  function scrollTranscript() {
+    const box = document.getElementById("transcript");
+    box.scrollTop = box.scrollHeight;
+  }
+
+  async function renderMarkdownInto(container, md) {
+    await libsReady;
+    if (!markedLib || !purifyLib) {
+      container.style.whiteSpace = "pre-wrap";
+      container.textContent = md;
+      scrollTranscript();
+      return;
+    }
+
+    container.innerHTML = purifyLib.sanitize(markedLib.parse(md, { gfm: true, breaks: true }));
+
+    // Make wide tables scroll inside the bubble instead of overflowing it.
+    container.querySelectorAll("table").forEach((t) => {
+      const wrap = document.createElement("div");
+      wrap.className = "tablewrap";
+      t.parentNode.insertBefore(wrap, t);
+      wrap.appendChild(t);
+    });
+
+    // ```mermaid blocks -> rendered flow diagrams (falls back to the code block on error).
+    const blocks = [...container.querySelectorAll("pre > code.language-mermaid")];
+    if (blocks.length) {
+      try {
+        const mermaid = await loadMermaid();
+        let n = 0;
+        for (const code of blocks) {
+          const id = "mmd-" + Date.now() + "-" + (n++);
+          try {
+            const { svg } = await mermaid.render(id, code.textContent);
+            const div = document.createElement("div");
+            div.className = "diagram";
+            div.innerHTML = svg;
+            const hasLabels = [...div.querySelectorAll("text, foreignObject")].some((n) => n.textContent.trim());
+            if (!hasLabels) throw new Error("diagram rendered without labels");
+            code.parentElement.replaceWith(div);
+            // The model sometimes also adds an ASCII-art copy of the same flow; hide it once the real diagram drew.
+            container.querySelectorAll("pre").forEach((p) => { if (/[│┌┐└┘├┤┬┴┼▼▲►]/.test(p.textContent)) p.remove(); });
+          } catch (err) {
+            console.warn("Mermaid diagram could not be rendered, showing source:", err);
+            const stray = document.getElementById("d" + id);
+            if (stray) stray.remove();
+          }
+        }
+      } catch (err) {
+        console.warn("Mermaid failed to load, showing diagram source:", err);
+      }
+    }
+    scrollTranscript();
+  }
+
+  function appendBotRich(md) {
+    const div = document.createElement("div");
+    div.className = "msg-bot";
+    const who = document.createElement("div");
+    who.className = "who";
+    who.textContent = "OpsPilot";
+    const body = document.createElement("div");
+    body.className = "md";
+    div.append(who, body);
+    document.getElementById("transcript").appendChild(div);
+    scrollTranscript();
+    renderMarkdownInto(body, md || "");
+    return div;
+  }
+
+  function showDiag(msg) {
+    const d = document.getElementById("diag");
+    d.textContent = msg || "";
+    d.style.display = msg ? "block" : "none";
+  }
+
+  // Checks the things that differ between an incognito window and a normal profile.
+  async function preflight() {
+    const msgs = [];
+    let fatal = false;
+    if (!window.isSecureContext) {
+      msgs.push("This page is not a secure context, so the browser disables the microphone. Open it as http://localhost:PORT (not a LAN IP) or over HTTPS.");
+      fatal = true;
+    }
+    if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) {
+      msgs.push("This browser exposes no microphone API here.");
+      fatal = true;
+    }
+    try {
+      const p = await navigator.permissions.query({ name: "microphone" });
+      if (p.state === "denied") {
+        msgs.push("The microphone is BLOCKED for this site in this browser profile (incognito starts fresh, which is why it works there). Click the lock icon in the address bar > Site settings > Microphone > Allow, then reload.");
+        fatal = true;
+      }
+    } catch (e) { /* Permissions API not available: ignore */ }
+    return { msgs, fatal };
+  }
+
+  function setStatus(text) {
+    document.getElementById("status").textContent = text;
+  }
+
+  document.getElementById("login-box").style.display = "block";
+</script>
+
+</body>
+</html>

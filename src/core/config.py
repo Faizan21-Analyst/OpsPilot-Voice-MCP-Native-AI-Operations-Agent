@@ -24,6 +24,10 @@ class GroqSettings(BaseSettings):
 class DatabaseSettings(BaseSettings):
     url: str = "sqlite+aiosqlite:///./data/opspilot.db"
 
+class AuthSettings(BaseSettings):
+    jwt_secret: str
+    token_expire_minutes: int = 480  # 8 hours
+
 class MCPServersSettings(BaseSettings):
     docs_url: str = "http://127.0.0.1:8001/mcp"
     sql_url: str = "http://127.0.0.1:8002/mcp"
@@ -35,6 +39,7 @@ class AppSettings(BaseSettings):
     groq: GroqSettings
     gemini: GeminiSettings
     litellm: LiteLLMSettings
+    auth: AuthSettings
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
     mcp_servers: MCPServersSettings = Field(default_factory=MCPServersSettings)
 
