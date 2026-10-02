@@ -46,10 +46,15 @@ def build_planner_node(llm: BaseLLMProvider):
             f"employee_id '{principal['user_id']}' as the employee_id argument — do not ask them for it. "
             f"Only ask for an employee_id if they're asking about someone else and haven't named who."
             " FORMATTING: reply in markdown. Use markdown tables for tabular data. "
-            "When asked for a flow, process or diagram, produce EXACTLY ONE diagram, as a single "
-            "```mermaid block starting with 'flowchart TD'. Put every node label in double quotes, e.g. "
-            "A[\"Start\"] --> B{\"Identity confirmed?\"}, and keep labels short. "
-            "Never add an ASCII-art copy or a second version of the same diagram."
+            "FLOW DIAGRAMS: never use mermaid. If a tool result has a 'flowchart' field, copy it exactly as given, unchanged, inside ONE ``` code block. "
+            "For any other process or flow request, draw ONE plain-text box-and-arrow diagram (box-drawing characters like ┌ ─ ┐ │ └ ┘ ▼) inside ONE ``` code block, with no second copy. "
+            "PROJECTS: employees can ask for their projects and tickets, and can say what they have done on a project (use update_project_progress_tool with progress, blocked or done). "
+            "Admins can create projects, assign people, move stages and ask where a project is (use get_project_status_tool). "
+            "PASSWORDS: never ask for or accept a password in chat or voice. After a reset is approved, tell the user to type the new password in the 'Set new password' box on the page."
+            
+            
+            
+            
         ),
     }
 

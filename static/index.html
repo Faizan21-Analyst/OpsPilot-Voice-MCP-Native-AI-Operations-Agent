@@ -96,7 +96,7 @@
   .md blockquote { margin: 8px 0; padding: 4px 12px; border-left: 3px solid var(--blue); color: var(--muted); }
   .md code { background: rgba(255,255,255,.08); padding: 2px 6px; border-radius: 6px; font-family: ui-monospace, Consolas, monospace; font-size: 14px; }
   .md pre { background: #070c18; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; overflow-x: auto; margin: 10px 0; }
-  .md pre code { background: none; padding: 0; white-space: pre; line-height: 1.45; }
+  .md pre code { background: none; padding: 0; white-space: pre; line-height: 1.2; font-family: "Cascadia Mono", Consolas, "DejaVu Sans Mono", ui-monospace, monospace; font-size: 14px; color: #cfe8ff; letter-spacing: 0; }
   .tablewrap { overflow-x: auto; margin: 10px 0; border: 1px solid var(--line); border-radius: 10px; }
   .md table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
   .md th, .md td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
@@ -130,6 +130,7 @@
   }
   @media (prefers-reduced-motion: reduce) { .orb, .wave b { animation: none; } }
 </style>
+<link rel="stylesheet" href="/portal.css">
 </head>
 <body>
 
@@ -161,6 +162,7 @@
 
     <section class="main">
       <div class="topbar"><h1>Dashboard</h1><div class="avatar"></div></div>
+      <div id="portal-view"></div>
       <div class="history">
         <h3>Dialogue history</h3>
         <div id="transcript"></div>
@@ -190,6 +192,7 @@
   </div>
 </div>
 
+<script type="module" src="/portal.js"></script>
 <script type="module">
   // Voice libraries are loaded on demand inside connect(), so a blocked CDN can never break login or text chat.
   
@@ -222,6 +225,7 @@
       }
       const data = await resp.json();
       token = data.access_token;
+      if (window.Portal) window.Portal.init(token, data.role, data.user_id);
       document.getElementById("login-box").style.display = "none";
       document.getElementById("chat-box").style.display = "block";
       await connect();
@@ -271,6 +275,7 @@
           if (msg && msg.type === "agent_answer") {
             pendingUser = []; // bot has answered, so any unmatched user fragments are settled
             appendBotRich(msg.text);
+            if (window.Portal) window.Portal.afterAgent();
           }
         },
         onDisconnected: () => setStatus("Disconnected"),
@@ -337,10 +342,12 @@
         });
         const resumeData = await resumeResp.json();
         appendBotRich(resumeData.answer);
+        if (window.Portal) window.Portal.afterAgent();
         return;
       }
       
       appendBotRich(data.answer);
+      if (window.Portal) window.Portal.afterAgent();
     } catch (err) {
       appendMessage("bot", "Error communicating with server: " + err.message);
     }
@@ -443,7 +450,7 @@
     });
 
     // ```mermaid blocks -> rendered flow diagrams (falls back to the code block on error).
-    const blocks = [...container.querySelectorAll("pre > code.language-mermaid")];
+    const blocks = []; // flow diagrams are plain-text box drawings in a code block; mermaid is not used
     if (blocks.length) {
       try {
         const mermaid = await loadMermaid();

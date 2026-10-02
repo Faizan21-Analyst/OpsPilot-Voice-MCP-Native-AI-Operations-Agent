@@ -14,4 +14,8 @@ audit_log = Table(
     Column("status", String, nullable=False),
     Column("detail", String),
     Column("created_at", DateTime, server_default=func.now()),
+    # --- v2: "what did Ops do, to whom, and why" (nullable; added to existing DBs by migrate.py) ---
+    Column("reason", String),       # why: the user's request that triggered the action
+    Column("actor_role", String),   # admin | employee | system
+    Column("source", String),       # agent | portal | login | seed
 )

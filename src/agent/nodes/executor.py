@@ -7,6 +7,18 @@ from src.mcp_client.manager import MCPClientManager
 from src.permissions.policy_engine import PolicyEngine
 
 
+def _last_user_request(state: AgentState, limit: int = 300) -> str:
+    """The most recent thing the human said. Recorded as the 'why' on every Ops action."""
+    for msg in reversed(state["messages"]):
+        if isinstance(msg, dict):
+            role, content = msg.get("role"), msg.get("content")
+        else:
+            role, content = getattr(msg, "type", None), getattr(msg, "content", None)
+        if role in ("user", "human") and isinstance(content, str) and content.strip():
+            return " ".join(content.split())[:limit]
+    return ""
+
+
 def build_executor_node(manager: MCPClientManager,policy_engine: PolicyEngine,):
     async def executor_node(state: AgentState) -> dict:
 
@@ -28,6 +40,13 @@ def build_executor_node(manager: MCPClientManager,policy_engine: PolicyEngine,):
         tool_result_messages = []
 
         tools_called = []
+
+        def inject_trusted_fields(tool_args: dict, tool_call_id: str) -> None:
+            # Never taken from the model: identity, idempotency and the human's request (the audit "why").
+            tool_args["requested_by"] = principal["user_id"]
+            tool_args["requester_role"] = principal["role"]
+            tool_args["idempotency_key"] = f"{state['session_id']}:{tool_call_id}"
+            tool_args["reason"] = _last_user_request(state)
 
         for call in tool_calls:
 
@@ -95,11 +114,7 @@ def build_executor_node(manager: MCPClientManager,policy_engine: PolicyEngine,):
                 else:
 
                     if server_name == "ops":
-                        tool_args["requested_by"] = principal["user_id"]
-                        tool_args["requester_role"] = principal["role"]
-                        tool_args["idempotency_key"] = (
-                            f"{state['session_id']}:{tool_call_id}"
-                        )
+                        inject_trusted_fields(tool_args, tool_call_id)
 
                     result = await manager.call_tool(
                         server_name,
@@ -110,11 +125,7 @@ def build_executor_node(manager: MCPClientManager,policy_engine: PolicyEngine,):
             else:
 
                 if server_name == "ops":
-                    tool_args["requested_by"] = principal["user_id"]
-                    tool_args["requester_role"] = principal["role"]
-                    tool_args["idempotency_key"] = (
-                        f"{state['session_id']}:{tool_call_id}"
-                    )
+                    inject_trusted_fields(tool_args, tool_call_id)
 
                 result = await manager.call_tool(
                     server_name,
