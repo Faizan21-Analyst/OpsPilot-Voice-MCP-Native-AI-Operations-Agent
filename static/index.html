@@ -49,6 +49,12 @@
   .login-card button { width: 100%; margin-top: 16px; padding: 13px; border: 0; border-radius: 10px; font-weight: 600;
     background: linear-gradient(180deg, #3d97ff, #1f74e6); box-shadow: 0 6px 18px rgba(47,139,255,.35); }
   #login-error { color: #ff6b6b; margin-top: 10px; font-size: 14px; min-height: 18px; text-align: center; }
+  .demo-hint { margin-top: 18px; padding: 14px; background: var(--panel-2); border: 1px dashed var(--blue);
+    border-radius: 12px; font-size: 13.5px; color: var(--muted); }
+  .demo-hint strong { display: block; color: var(--text); margin-bottom: 6px; }
+  .demo-hint code { background: rgba(255,255,255,.08); padding: 2px 6px; border-radius: 6px; color: var(--cyan);
+    font-family: ui-monospace, Consolas, monospace; user-select: all; }
+  .demo-hint div { margin-top: 8px; line-height: 1.5; }
 
   /* app shell */
   /* Hidden until login succeeds (the login handler switches it to display:block). Without this the dashboard sat
@@ -146,6 +152,11 @@
       <input id="password" type="password" placeholder="Password" autocomplete="current-password">
       <button onclick="login()">Log in</button>
       <div id="login-error"></div>
+      <div class="demo-hint">
+        <strong>Demo accounts (sample data only)</strong>
+        <div><b>Admin</b> &mdash; <code>admin</code> / <code>OpsPilot-Admin-26</code><br>ingest documents, manage accounts, view analytics</div>
+        <div><b>Employee</b> &mdash; <code>employee</code> / <code>OpsPilot-Demo-26</code><br>ask questions and request actions by chat or voice</div>
+      </div>
     </div>
   </div>
 </div>
