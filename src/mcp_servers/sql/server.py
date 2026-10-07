@@ -86,4 +86,4 @@ async def get_ticket_tool(ticket_id: str) -> dict | None:
 
 
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http", port=8002)
+    mcp.run(transport="streamable-http", host=os.getenv("MCP_HOST", "127.0.0.1"), port=8002)

@@ -21,6 +21,21 @@ async def lifespan(app: FastAPI):
     configure_logging(settings.log_level)
     app.state.container = Container(settings)
 
+    # Pre-warm the MCP tool list in the background (results are cached by the manager), so the first chat request
+    # does not pay for tool discovery. If an MCP server is not up yet, nothing breaks: it is retried on demand.
+    async def _warm_tools():
+        try:
+            tools = await app.state.container.manager.discover_tools()
+            log.info("mcp_tools_prewarmed", count=len(tools))
+        except Exception as e:
+            log.warning("mcp_tools_prewarm_failed", error=str(e))
+
+    warm_task = asyncio.create_task(_warm_tools())
+
+    # Load the text-to-speech model once, in the background, so the first voice session does not wait ~15 s for it.
+    from src.channels.voice.pipeline import preload_voice_models
+    voice_warm_task = asyncio.create_task(asyncio.to_thread(preload_voice_models))
+
     # Portal database (employees, tickets, projects, accounts, audit log).
     # Migration is idempotent: it only adds what is missing and never drops or rewrites existing data.
     # If the database is unavailable the original chat/voice features keep working with the legacy demo logins.
@@ -35,6 +50,8 @@ async def lifespan(app: FastAPI):
 
     log.info("app_started", env=settings.env)
     yield
+    warm_task.cancel()
+    voice_warm_task.cancel()
     if engine is not None:
         await engine.dispose()
     log.info("app_shutdown")

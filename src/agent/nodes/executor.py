@@ -7,6 +7,34 @@ from src.mcp_client.manager import MCPClientManager
 from src.permissions.policy_engine import PolicyEngine
 
 
+def tool_result_to_text(result) -> str:
+    """
+    The text the LLM sees for a tool result. MCP results arrive as CallToolResult objects whose str() repeats the same
+    data several times (content blocks + structured_content + metadata): ~3x the tokens for a policy search and ~8x for
+    a small lookup, which is what pushed requests over the provider's tokens-per-minute limit. Send the data once.
+    """
+    plain = (dict, list, str, int, float, bool)
+    payload = result if isinstance(result, plain) else getattr(result, "data", None)
+    if not isinstance(payload, plain):
+        sc = getattr(result, "structured_content", None)
+        if isinstance(sc, dict) and set(sc) == {"result"}:
+            payload = sc["result"]
+            if payload is None:
+                return "null"   # the tool legitimately returned nothing (e.g. "ticket not found")
+        else:
+            payload = sc
+    if payload is None:
+        texts = [getattr(c, "text", None) for c in (getattr(result, "content", None) or [])]
+        texts = [t for t in texts if t]
+        return "\n".join(texts) if texts else str(result)
+    if isinstance(payload, str):
+        return payload
+    try:
+        return json.dumps(payload, default=str, ensure_ascii=False)
+    except Exception:
+        return str(payload)
+
+
 def _last_user_request(state: AgentState, limit: int = 300) -> str:
     """The most recent thing the human said. Recorded as the 'why' on every Ops action."""
     for msg in reversed(state["messages"]):
@@ -133,11 +161,7 @@ def build_executor_node(manager: MCPClientManager,policy_engine: PolicyEngine,):
                     tool_args,
                 )
 
-            content_str = (
-                json.dumps(result)
-                if isinstance(result, dict)
-                else str(result)
-            )
+            content_str = tool_result_to_text(result)
 
             tool_result_messages.append({
                 "role": "tool",

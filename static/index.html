@@ -51,7 +51,9 @@
   #login-error { color: #ff6b6b; margin-top: 10px; font-size: 14px; min-height: 18px; text-align: center; }
 
   /* app shell */
-  #chat-box { height: 100vh; overflow: hidden; }
+  /* Hidden until login succeeds (the login handler switches it to display:block). Without this the dashboard sat
+     under the login form and the page scrolled down into it. */
+  #chat-box { display: none; height: 100vh; overflow: hidden; }
   .app { display: grid; grid-template-columns: 240px 1fr 380px; grid-template-rows: minmax(0, 1fr); height: 100vh; overflow: hidden; }
   .sidebar { background: var(--panel); border-right: 1px solid var(--line); padding: 24px 16px; }
   .sidebar .logo { padding: 0 8px 28px; }
@@ -204,6 +206,7 @@
   let token = null;
   let client = null;
   let mode = "voice";
+  let voiceLive = false; // true once connected: from then on only the normal status lines are shown
 
   // Attached to window because this script is running as an ES module
   window.login = async function() {
@@ -279,7 +282,13 @@
           }
         },
         onDisconnected: () => setStatus("Disconnected"),
-        onError: (e) => setStatus("Error: " + e.message),
+        onError: (e) => {
+          console.error("PIPECAT ERROR:", e);
+          const msg = describeError(e);
+          // Kept off the page on purpose: the status line stays "Connected — voice mode active". Details are in the browser console (F12).
+          console.warn("Voice server message (hidden from the page):", msg);
+          // (no on-page warning)
+        },
       },
     });
     
@@ -295,6 +304,7 @@
         : "Connection failed: " + (e.message || e));
       return;
     }
+    voiceLive = true;
     setStatus("Connected — voice mode active");
   }
 
@@ -341,12 +351,12 @@
           body: JSON.stringify({ session_id: "web-text-session", approved: ok }),
         });
         const resumeData = await resumeResp.json();
-        appendBotRich(resumeData.answer);
+        appendBotRich(resumeData.answer ?? ("⚠️ " + describeError(resumeData)));
         if (window.Portal) window.Portal.afterAgent();
         return;
       }
       
-      appendBotRich(data.answer);
+      appendBotRich(data.answer ?? ("⚠️ " + describeError(data)));
       if (window.Portal) window.Portal.afterAgent();
     } catch (err) {
       appendMessage("bot", "Error communicating with server: " + err.message);
@@ -495,7 +505,29 @@
     return div;
   }
 
+  // Pulls a readable message out of every error shape we can receive (Pipecat/RTVI, fetch, FastAPI, plain strings).
+  function describeError(e) {
+    if (e == null) return "Something went wrong (no details were provided).";
+    if (typeof e === "string") return e;
+    const d = e.data;
+    let msg = (d && (typeof d === "string" ? d : d.message || d.error)) || e.message || e.error || e.reason;
+    if (!msg && e.detail) msg = typeof e.detail === "string" ? e.detail : e.detail.map ? e.detail.map((x) => x.msg || JSON.stringify(x)).join("; ") : JSON.stringify(e.detail);
+    if (msg) return String(msg);
+    try { return "Something went wrong: " + JSON.stringify(e).slice(0, 300); } catch (_) { return "Something went wrong."; }
+  }
+
+  let warnTimer = null;
+  function warn(msg) {
+    console.warn("Warning (hidden from the page):", msg);
+    clearTimeout(warnTimer);
+    warnTimer = setTimeout(() => {
+      const d = document.getElementById("diag");
+      if (d && d.textContent.startsWith("Warning: ")) showDiag(""); // never clears the mic/library setup notes
+    }, 10000);
+  }
+
   function showDiag(msg) {
+    if (msg && voiceLive) { console.warn("Voice notice (hidden from the page):", msg); return; }
     const d = document.getElementById("diag");
     d.textContent = msg || "";
     d.style.display = msg ? "block" : "none";
@@ -524,6 +556,8 @@
   }
 
   function setStatus(text) {
+    const normal = ["Connected — voice mode active", "Voice mode active", "Text mode — mic muted", "Disconnected"];
+    if (voiceLive && !normal.includes(text)) { console.warn("Status change hidden from the page:", text); return; }
     document.getElementById("status").textContent = text;
   }
 

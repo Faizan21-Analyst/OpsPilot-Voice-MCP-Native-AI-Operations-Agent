@@ -1,6 +1,21 @@
+from __future__ import annotations
+
 import os
 
-import pyaudio
+try:
+    import pyaudio
+except ImportError:
+    # Server / Docker: the browser's microphone arrives over a WebSocket, so PyAudio is not needed and not installed.
+    # It is only used by the local-microphone mode; using that mode without it raises a clear error instead of
+    # crashing the whole API at import time.
+    class _MissingPyAudio:
+        def __getattr__(self, name):
+            raise RuntimeError(
+                "PyAudio is not installed. The local microphone mode needs it (pip install pyaudio); "
+                "the web/Docker deployment uses the browser microphone and does not."
+            )
+
+    pyaudio = _MissingPyAudio()
 
 
 def select_audio_devices() -> tuple[int | None, int, int | None]:

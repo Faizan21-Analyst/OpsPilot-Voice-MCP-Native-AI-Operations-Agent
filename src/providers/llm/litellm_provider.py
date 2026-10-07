@@ -1,6 +1,6 @@
 import time
 import litellm
-from litellm.router import Router
+from litellm.router import Router, RetryPolicy
 from litellm.exceptions import (
     RateLimitError as LiteLLMRateLimitError,
     APIError as LiteLLMAPIError,
@@ -42,6 +42,9 @@ class LiteLLMProvider(BaseLLMProvider):
             ],
             fallbacks=[{"primary-groq": ["primary-gemini"]}],
             num_retries=litellm_settings.num_retries,
+            # A 429 (rate limit / "request too large") will not succeed if repeated immediately, so do not burn seconds
+            # retrying it: go straight to the Gemini fallback. Timeouts and 5xx errors still get the normal retries.
+            retry_policy=RetryPolicy(RateLimitErrorRetries=0),
             timeout=litellm_settings.timeout_s,
         )
 

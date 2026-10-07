@@ -23,7 +23,38 @@ from src.mcp_servers.sql.models import (
 from src.mcp_servers.ops.models import audit_log  # noqa: F401  (registers audit_log on the shared metadata)
 
 _FMT = "%Y-%m-%d %H:%M:%S"
-DEMO_PASSWORD = "employee123"
+DEMO_PASSWORD = "employee123"          # built-in demo values: development only (see seed_passwords)
+DEMO_ADMIN_PASSWORD = "admin123"
+
+
+def is_production() -> bool:
+    return os.getenv("ENV", "dev").strip().lower() in ("prod", "production")
+
+
+def seed_passwords() -> tuple[str, str]:
+    """(admin_password, password_for_every_other_demo_account) used when the demo accounts are created.
+
+    Choose them with OPSPILOT_ADMIN_PASSWORD and OPSPILOT_DEMO_PASSWORD. With ENV=prod the built-in demo passwords are
+    refused, so a deployed app can never start with logins that anyone on the internet could guess."""
+    admin_pw = os.getenv("OPSPILOT_ADMIN_PASSWORD") or ""
+    demo_pw = os.getenv("OPSPILOT_DEMO_PASSWORD") or ""
+    if is_production():
+        problems = []
+        for name, value, builtin in (
+            ("OPSPILOT_ADMIN_PASSWORD", admin_pw, DEMO_ADMIN_PASSWORD),
+            ("OPSPILOT_DEMO_PASSWORD", demo_pw, DEMO_PASSWORD),
+        ):
+            if not value:
+                problems.append(f"{name} is not set")
+            elif value == builtin:
+                problems.append(f"{name} is still the built-in demo password")
+            elif len(value) < 10:
+                problems.append(f"{name} must be at least 10 characters")
+            elif len(value.encode()) > 72:
+                problems.append(f"{name} must be at most 72 bytes (bcrypt limit)")
+        if problems:
+            raise RuntimeError("Refusing to create demo accounts in production: " + "; ".join(problems))
+    return admin_pw or DEMO_ADMIN_PASSWORD, demo_pw or DEMO_PASSWORD
 
 
 def sync_url(url: str) -> str:
@@ -128,7 +159,8 @@ def _seed_users(conn, now):
     if conn.execute(select(func.count()).select_from(users)).scalar():
         return
     from src.auth.security import hash_password  # local import: bcrypt only needed when seeding
-    demo_hash, admin_hash = hash_password(DEMO_PASSWORD), hash_password("admin123")
+    admin_pw, demo_pw = seed_passwords()
+    demo_hash, admin_hash = hash_password(demo_pw), hash_password(admin_pw)
     for eid, name, *_ in _EMPLOYEES:
         if eid == "E999":
             username, role, pw = "admin", "admin", admin_hash

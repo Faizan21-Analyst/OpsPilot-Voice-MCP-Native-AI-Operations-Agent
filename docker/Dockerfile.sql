@@ -1,0 +1,17 @@
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+# Slim image: this server only talks to the SQLite database. No torch, no ML models, no compiler needed.
+COPY requirements.mcp.txt requirements.txt
+RUN pip install --default-timeout=300 -r requirements.txt
+
+COPY src/ src/
+
+EXPOSE 8002
+CMD ["python", "-m", "src.mcp_servers.sql.server"]

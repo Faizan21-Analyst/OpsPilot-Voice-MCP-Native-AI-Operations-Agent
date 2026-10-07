@@ -1,0 +1,41 @@
+# Keep the Docker build context small. Without this file every `docker compose build` uploaded the whole project
+# folder to the Docker daemon: the ops_env virtualenv (gigabytes), .git history, mlruns, local databases, etc.
+
+# Python environments / caches
+ops_env/
+venv/
+.venv/
+Scripts/
+**/__pycache__/
+**/*.pyc
+.pytest_cache/
+.deepeval/
+
+# Secrets and local state: never bake into an image (compose passes .env to the containers at run time)
+.env
+.env.*
+!.env.example
+data/
+mlruns/
+mlflow.db
+
+# Version control / editor / docs
+.git/
+.github/
+deploy/
+.gitignore
+.vscode/
+.idea/
+README.md
+notes.txt
+*.pdf
+
+# Dev-only code and the full local requirements freeze (images use requirements.docker.txt / requirements.mcp.txt)
+requirements.txt
+evals/
+tests/
+test.py
+test2.py
+chunk_check.py
+clean_reindex.py
+python

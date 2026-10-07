@@ -1,0 +1,35 @@
+# Used by the GATEWAY and DOCS images (they need the voice stack and the embedding / reranking models).
+# Pinned to the versions you developed and tested with locally (see requirements.txt), so the containers behave like
+# your machine. Previously these were unpinned and Docker silently installed newer releases (e.g. Pipecat 1.12.0).
+#
+# torch is NOT listed here on purpose: the Dockerfiles install the CPU-only build first. Letting pip pick it from PyPI
+# gives the CUDA build (~3 GB of NVIDIA libraries), which makes the image huge and the build very slow.
+
+fastapi==0.141.1
+uvicorn[standard]==0.53.0
+pydantic==2.13.5
+pydantic-settings==2.15.0
+python-dotenv==1.2.3
+python-multipart==0.0.32
+
+groq==1.7.0
+litellm==1.101.0
+google-generativeai==0.8.6
+langgraph==1.2.11
+
+fastmcp==4.0.4
+
+SQLAlchemy[asyncio]==2.0.54
+aiosqlite==0.22.1
+
+PyYAML==6.0.3
+structlog==24.4.0
+bcrypt==5.0.0
+PyJWT==2.14.0
+
+sentence-transformers==6.0.1
+qdrant-client==1.19.1
+llama-parse==0.6.94
+langchain-text-splitters==1.1.2
+
+pipecat-ai[websocket,kokoro,silero]==1.11.0

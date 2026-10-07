@@ -1,0 +1,36 @@
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+# curl: used by the container healthcheck. build-essential: only in case a package has to compile.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl build-essential && rm -rf /var/lib/apt/lists/*
+
+# CPU-only torch FIRST (no GPU in this container). Otherwise pip installs PyTorch's CUDA build from PyPI:
+# ~3 GB of NVIDIA libraries and a very slow build. Needed here only for admin document upload (/admin/ingest).
+RUN pip install --default-timeout=300 torch --index-url https://download.pytorch.org/whl/cpu
+
+COPY requirements.docker.txt requirements.txt
+RUN pip install --default-timeout=300 -r requirements.txt
+
+# Kokoro (text-to-speech) downloads its ~330 MB model from GitHub the first time it runs. Do it at build time so the
+# first voice session starts instantly instead of hanging (and works without internet access at run time).
+RUN python -c "from pipecat.services.kokoro.tts import KOKORO_CACHE_DIR as d, _ensure_model_files as e; e(d / 'kokoro-v1.0.onnx', d / 'voices-v1.0.bin')"
+
+# Pipecat's startup loads NLTK's sentence tokenizer and downloads 'punkt_tab' if it is missing. In a fresh container that
+# download ran inside Pipecat's 20 s setup window and the voice pipeline was stopped ("timeout setting the pipeline up").
+# Bake it into the image so nothing is downloaded at run time.
+ENV NLTK_DATA=/usr/local/share/nltk_data
+RUN python -c "import nltk; assert nltk.download('punkt_tab', download_dir='/usr/local/share/nltk_data', quiet=True)"
+
+COPY src/ src/
+COPY static/ static/
+COPY policies/ policies/
+
+EXPOSE 8000
+CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

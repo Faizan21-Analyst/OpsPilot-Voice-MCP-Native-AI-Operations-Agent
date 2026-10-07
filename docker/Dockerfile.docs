@@ -1,0 +1,27 @@
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl build-essential && rm -rf /var/lib/apt/lists/*
+
+# CPU-only torch FIRST (see Dockerfile.gateway): avoids the multi-GB CUDA build.
+RUN pip install --default-timeout=300 torch --index-url https://download.pytorch.org/whl/cpu
+
+COPY requirements.docker.txt requirements.txt
+RUN pip install --default-timeout=300 -r requirements.txt
+
+# Bake the embedding / reranker models into the image at build time so the container never downloads them at start-up.
+# (The compose file sets HF_HUB_OFFLINE=1 for this service, so it loads straight from this cache.)
+RUN python -c "from sentence_transformers import SentenceTransformer, CrossEncoder; \
+    SentenceTransformer('BAAI/bge-base-en-v1.5'); CrossEncoder('BAAI/bge-reranker-base')"
+
+COPY src/ src/
+
+EXPOSE 8001
+CMD ["python", "-m", "src.mcp_servers.docs.server"]

@@ -220,4 +220,4 @@ async def set_project_stage_tool(
 
 
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http", port=8003)
+    mcp.run(transport="streamable-http", host=os.getenv("MCP_HOST", "127.0.0.1"), port=8003)

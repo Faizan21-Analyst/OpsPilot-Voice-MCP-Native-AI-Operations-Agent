@@ -1,3 +1,4 @@
+import asyncio
 import tempfile
 from pathlib import Path
 
@@ -28,7 +29,9 @@ async def ingest_document(
         tmp_path = tmp.name
 
     try:
-        result = await container.rag_pipeline.index_document(tmp_path)
+        # Built on first upload (loads the models; takes a while once), in a worker thread so the API stays responsive.
+        pipeline = await asyncio.to_thread(container.get_rag_pipeline)
+        result = await pipeline.index_document(tmp_path)
         logger.info("admin_ingest", filename=file.filename, admin=principal.user_id, chunks=result["chunks"])
         return {"success": True, "filename": file.filename, "chunks": result["chunks"]}
     except Exception as e:

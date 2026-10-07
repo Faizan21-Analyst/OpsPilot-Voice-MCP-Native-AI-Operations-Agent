@@ -1,3 +1,6 @@
+import asyncio
+import os
+
 from src.core.logging import get_logger
 
 from src.mcp_servers.docs.rag.parser import DocumentParser
@@ -8,6 +11,13 @@ from src.mcp_servers.docs.rag.reranker import DocumentReranker
 
 
 logger = get_logger(__name__)
+
+# How many chunks to pull from Qdrant and rerank, independent of how many are finally returned (top_k).
+# Fetching a few more than we return lets the reranker choose the best ones; lower it (e.g. 3) for speed.
+try:
+    RERANK_CANDIDATES = max(1, int(os.getenv("OPSPILOT_RAG_CANDIDATES", "5")))
+except ValueError:
+    RERANK_CANDIDATES = 5
 
 
 class RAGPipeline:
@@ -94,21 +104,24 @@ class RAGPipeline:
             query=query,
         )
 
-        # 1. Embed query
-        query_vector = self.embedder.embed_query(
-            query
+        # 1. Embed query  (blocking model call -> worker thread, so the server's event loop stays responsive)
+        query_vector = await asyncio.to_thread(
+            self.embedder.embed_query,
+            query,
         )
 
-        # 2. Hybrid retrieval
-        candidates = self.retriever.search(
+        # 2. Hybrid retrieval (fetch at least RERANK_CANDIDATES so the reranker has real choice even when top_k is small)
+        candidates = await asyncio.to_thread(
+            self.retriever.search,
             query=query,
             dense_query_vector=query_vector,
-            limit=top_k,
+            limit=max(top_k, RERANK_CANDIDATES),
             candidate_limit=20,
         )
 
         # 3. Rerank
-        results = self.reranker.rerank(
+        results = await asyncio.to_thread(
+            self.reranker.rerank,
             query=query,
             documents=candidates,
             top_k=top_k,

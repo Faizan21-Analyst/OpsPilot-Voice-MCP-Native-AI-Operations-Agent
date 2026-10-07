@@ -1,0 +1,14 @@
+# Used by the SQL and OPS MCP server images. These two servers only talk to the database, so they do NOT need torch,
+# sentence-transformers, the voice stack or any ML model (the old setup installed ~820 packages and downloaded two
+# models for each of them). Verified: both servers import and register all their tools with just these packages.
+
+fastmcp==4.0.4
+pydantic==2.13.5
+pydantic-settings==2.15.0
+python-dotenv==1.2.3
+SQLAlchemy[asyncio]==2.0.54
+aiosqlite==0.22.1
+PyYAML==6.0.3
+structlog==24.4.0
+bcrypt==5.0.0
+PyJWT==2.14.0

@@ -1,0 +1,91 @@
+services:
+  docs-server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.docs
+    env_file: .env
+    environment:
+      # Listen on all interfaces so the gateway container can reach it (default was 127.0.0.1 = unreachable).
+      MCP_HOST: 0.0.0.0
+      # The embedding / reranker models are baked into the image, so never call out to Hugging Face at start-up.
+      HF_HUB_OFFLINE: "1"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8001), 3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      # Loading the models + the warm-up search can take a few minutes on the first start.
+      start_period: 300s
+    restart: unless-stopped
+
+  sql-server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.sql
+    env_file: .env
+    environment:
+      MCP_HOST: 0.0.0.0
+      DATABASE__URL: sqlite+aiosqlite:////app/data/opspilot.db
+    volumes:
+      - sqlite-data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8002), 3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+  ops-server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ops
+    env_file: .env
+    environment:
+      MCP_HOST: 0.0.0.0
+      DATABASE__URL: sqlite+aiosqlite:////app/data/opspilot.db
+    volumes:
+      - sqlite-data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8003), 3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.gateway
+    env_file: .env
+    ports:
+      - "8000:8000"
+    environment:
+      # These override anything in .env (which points at 127.0.0.1 for local development).
+      MCP_SERVERS__DOCS_URL: http://docs-server:8001/mcp
+      MCP_SERVERS__SQL_URL: http://sql-server:8002/mcp
+      MCP_SERVERS__OPS_URL: http://ops-server:8003/mcp
+      DATABASE__URL: sqlite+aiosqlite:////app/data/opspilot.db
+    volumes:
+      - sqlite-data:/app/data
+    # Wait until all three tool servers are really accepting connections. Otherwise a voice session that starts early
+    # would cache a tool list without the policy-search tool.
+    depends_on:
+      docs-server:
+        condition: service_healthy
+      sql-server:
+        condition: service_healthy
+      ops-server:
+        condition: service_healthy
+    healthcheck:
+      # /healthz is a cheap liveness probe. (/health makes a real LLM call, so it must not be polled.)
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+volumes:
+  sqlite-data:
