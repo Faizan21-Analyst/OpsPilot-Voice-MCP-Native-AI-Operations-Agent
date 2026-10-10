@@ -248,7 +248,8 @@ Quality is measured, not assumed. `evals/run_evals.py` runs the **real productio
 
 <div align="center">
 
-![Evaluation summary](docs/images/eval-summary-terminal.png)
+![Evaluation summary](<img width="975" height="460" alt="Screenshot 2026-09-27 124152" src="https://github.com/user-attachments/assets/58ccc70f-5c57-4de8-a3bc-7f2cd86d9ff2" />
+)
 
 </div>
 
@@ -271,7 +272,8 @@ Quality is measured, not assumed. `evals/run_evals.py` runs the **real productio
 
 <div align="center">
 
-![MLflow parallel-coordinates comparison of 3 runs](docs/images/mlflow-parallel-coordinates.png)
+![MLflow parallel-coordinates comparison of 3 runs](<img width="1677" height="657" alt="Screenshot 2026-09-27 145826" src="https://github.com/user-attachments/assets/d70e5452-301b-4794-bad6-21e78f884e8c" />
+)
 
 </div>
 
@@ -279,7 +281,8 @@ Every run logs parameters (`num_cases`, `retrieval_cases`, judge model, timestam
 
 <div align="center">
 
-![MLflow metric diff across runs](docs/images/mlflow-metrics-diff.png)
+![MLflow metric diff across runs](<img width="1643" height="677" alt="Screenshot 2026-09-27 133445" src="https://github.com/user-attachments/assets/18f01826-21e3-42bd-a0b4-f1cd6983e44b" />
+)
 
 </div>
 
@@ -297,7 +300,8 @@ Every run logs parameters (`num_cases`, `retrieval_cases`, judge model, timestam
 
 <div align="center">
 
-![MLflow comparison of 2 runs](docs/images/mlflow-two-run-comparison.png)
+![MLflow comparison of 2 runs](<img width="1643" height="677" alt="Screenshot 2026-09-27 133445" src="https://github.com/user-attachments/assets/06735504-0ea7-49a9-b5f1-62a11783ac71" />
+)
 
 </div>
 </details>
@@ -576,7 +580,7 @@ Issues and PRs are welcome. Please run `pytest tests -q` and, for agent or retri
 
 ## 👤 Author
 
-**Your Name** — [GitHub](https://github.com/<your-username>) · [LinkedIn](https://www.linkedin.com/in/<your-handle>) · <your-email>
+**Faizan Shaikh** — [GitHub](https://github.com/Faizan21-Analyst) · [LinkedIn](https://www.linkedin.com/in/faizan-shaikh-805a46256/) · faizanshaikh051102@gmail.com
 
 ---
 
