@@ -44,6 +44,19 @@ SECRETS = {
     "admin-password": "OPSPILOT_ADMIN_PASSWORD",
     "demo-password": "OPSPILOT_DEMO_PASSWORD",
 }
+# Extra Groq keys (other organisations = separate rate limits). Used only when the GitHub secret is set.
+# container-app secret name -> (script variable, environment variable inside the containers)
+OPTIONAL_SECRETS = {
+    "groq-api-key-2": ("GROQ_API_KEY2", "GROQ__API_KEY2"),
+    "groq-api-key-3": ("GROQ_API_KEY3", "GROQ__API_KEY3"),
+    "groq-api-key-4": ("GROQ_API_KEY4", "GROQ__API_KEY4"),
+}
+# Optional plain settings, passed on only when the GitHub variable is set: environment variable inside the containers -> script variable
+OPTIONAL_PLAIN = {
+    "GROQ__FALLBACK_MODEL": "GROQ_FALLBACK_MODEL",
+    "GEMINI__FALLBACK_MODEL": "GEMINI_FALLBACK_MODEL",
+    "LITELLM__MAX_OUTPUT_TOKENS": "LLM_MAX_OUTPUT_TOKENS",
+}
 REQUIRED_PLAIN = ["IMAGE_TAG", "ACR_LOGIN_SERVER", "ENVIRONMENT_ID", "APP_IDENTITY_ID", "AZURE_LOCATION", "QDRANT_HTTP"]
 DEFAULTS = {
     "GROQ_MODEL": "qwen/qwen3.8-27b",
@@ -65,7 +78,8 @@ def fail(message: str) -> None:
 
 
 def get(name: str) -> str:
-    return os.environ.get(name, DEFAULTS.get(name, "")).strip()
+    # An unset GitHub variable arrives as an EMPTY string, so empty must fall back to the default too.
+    return (os.environ.get(name) or DEFAULTS.get(name, "")).strip()
 
 
 def check_inputs() -> None:
@@ -94,7 +108,9 @@ def plain_env(name: str, value: str) -> dict:
 
 def shared_env() -> list[dict]:
     """Settings every container needs (each service loads the full settings object at start-up)."""
-    return [
+    optional = [secret_env(env_name, secret) for secret, (var, env_name) in OPTIONAL_SECRETS.items() if get(var)]
+    optional += [plain_env(env_name, get(var)) for env_name, var in OPTIONAL_PLAIN.items() if get(var)]
+    return optional + [
         plain_env("ENV", "prod"),                      # production mode: the built-in demo passwords are refused
         plain_env("LOG_LEVEL", "INFO"),
         plain_env("LOGURU_LEVEL", "INFO"),             # Pipecat logs at DEBUG by default, which is a lot of log data
@@ -181,7 +197,8 @@ def build() -> dict:
             "traffic": [{"weight": 100, "latestRevision": True}],
         },
         "registries": [{"server": get("ACR_LOGIN_SERVER"), "identity": get("APP_IDENTITY_ID")}],
-        "secrets": [{"name": name, "value": get(var)} for name, var in SECRETS.items()],
+        "secrets": [{"name": name, "value": get(var)} for name, var in SECRETS.items()]
+        + [{"name": name, "value": get(var)} for name, (var, _) in OPTIONAL_SECRETS.items() if get(var)],
     }
     return {
         "location": get("AZURE_LOCATION"),

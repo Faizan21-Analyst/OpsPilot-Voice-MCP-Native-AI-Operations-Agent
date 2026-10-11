@@ -112,6 +112,15 @@ jobs:
           APP_IDENTITY_ID: ${{ vars.APP_IDENTITY_ID }}
           AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
           QDRANT_HTTP: ${{ vars.QDRANT_HTTP }}
+          # Optional: leave unset to use the defaults in render_containerapp.py
+          GROQ_MODEL: ${{ vars.GROQ_MODEL }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+          GROQ_FALLBACK_MODEL: ${{ vars.GROQ_FALLBACK_MODEL }}
+          GEMINI_FALLBACK_MODEL: ${{ vars.GEMINI_FALLBACK_MODEL }}
+          LLM_MAX_OUTPUT_TOKENS: ${{ vars.LLM_MAX_OUTPUT_TOKENS }}
+          GROQ_API_KEY2: ${{ secrets.GROQ_API_KEY2 }}
+          GROQ_API_KEY3: ${{ secrets.GROQ_API_KEY3 }}
+          GROQ_API_KEY4: ${{ secrets.GROQ_API_KEY4 }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           AUTH_JWT_SECRET: ${{ secrets.AUTH_JWT_SECRET }}

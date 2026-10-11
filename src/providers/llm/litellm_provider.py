@@ -23,29 +23,50 @@ MALFORMED_TOOL_CALL_RETRIES = 2
 
 class LiteLLMProvider(BaseLLMProvider):
     def __init__(self, groq: GroqSettings, gemini: GeminiSettings, litellm_settings: LiteLLMSettings):
+        keys = groq.api_keys
+
+        def groq_deployments(group: str, model: str) -> list[dict]:
+            """One deployment per Groq key under the same group name: the router spreads requests over them and skips
+            a key while it is rate limited. The output cap is set per deployment so it never reaches Gemini."""
+            params_extra = {"max_tokens": litellm_settings.max_output_tokens} if litellm_settings.max_output_tokens > 0 else {}
+            return [
+                {
+                    "model_name": group,
+                    "litellm_params": {"model": f"groq/{model}", "api_key": key, **params_extra},
+                    "model_info": {"id": f"{group}-key-{i}"},
+                }
+                for i, key in enumerate(keys, start=1)
+            ]
+
+        model_list = groq_deployments("primary-groq", groq.model)
+        # Order tried after every Groq key (main model) has failed: another Groq model, then Gemini, then a second Gemini.
+        fallback_groups: list[str] = []
+        if groq.fallback_model:
+            model_list += groq_deployments("backup-groq", groq.fallback_model)
+            fallback_groups.append("backup-groq")
+        model_list.append({"model_name": "primary-gemini", "litellm_params": {"model": gemini.model, "api_key": gemini.api_key}})
+        fallback_groups.append("primary-gemini")
+        if gemini.fallback_model:
+            model_list.append({"model_name": "backup-gemini", "litellm_params": {"model": gemini.fallback_model, "api_key": gemini.api_key}})
+            fallback_groups.append("backup-gemini")
+
         self._router = Router(
-            model_list=[
-                {
-                    "model_name": "primary-groq",
-                    "litellm_params": {
-                        "model": f"groq/{groq.model}",
-                        "api_key": groq.api_key,
-                    },
-                },
-                {
-                    "model_name": "primary-gemini",
-                    "litellm_params": {
-                        "model": gemini.model,
-                        "api_key": gemini.api_key,
-                    },
-                },
-            ],
-            fallbacks=[{"primary-groq": ["primary-gemini"]}],
+            model_list=model_list,
+            fallbacks=[{"primary-groq": fallback_groups}],
             num_retries=litellm_settings.num_retries,
-            # A 429 (rate limit / "request too large") will not succeed if repeated immediately, so do not burn seconds
-            # retrying it: go straight to the Gemini fallback. Timeouts and 5xx errors still get the normal retries.
-            retry_policy=RetryPolicy(RateLimitErrorRetries=0),
+            # A 429 will not succeed if repeated on the SAME key, but another key (another organisation) has its own
+            # limit, so a rate-limited request is retried on the other keys. Once all are cooling down, the router
+            # moves on to the fallback models.
+            retry_policy=RetryPolicy(RateLimitErrorRetries=max(0, len(keys) - 1)),
+            cooldown_time=litellm_settings.cooldown_s,
             timeout=litellm_settings.timeout_s,
+        )
+        log.info(
+            "llm_router_ready",
+            groq_keys=len(keys),
+            groq_model=groq.model,
+            fallbacks=fallback_groups,
+            max_output_tokens=litellm_settings.max_output_tokens,
         )
 
     @property
