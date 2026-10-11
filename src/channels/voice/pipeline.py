@@ -26,6 +26,35 @@ _RealKokoro = _kokoro_module.Kokoro
 _kokoro_lock = threading.Lock()
 _kokoro_cache: dict = {}
 
+# How many CPU threads the voice engine may use. onnxruntime defaults to one thread per core of the HOST, which is far
+# more than the CPU a container is allowed (the gateway gets about 1.75 vCPU on Azure). The extra threads fight over
+# the quota, the container is throttled, and speech stutters. 2 fits the quota; 0 = leave onnxruntime's default.
+try:
+    TTS_THREADS = max(0, int(os.getenv("OPSPILOT_TTS_THREADS", "2")))
+except ValueError:
+    TTS_THREADS = 2
+# One log line per spoken sentence: how long the speech is and how long it took to make. When making it takes longer
+# than playing it, the voice has gaps. Set OPSPILOT_TTS_TIMING=0 to silence these lines.
+TTS_TIMING = os.getenv("OPSPILOT_TTS_TIMING", "1") != "0"
+
+
+def _build_kokoro_engine(model_path, voices_path):
+    """Create the Kokoro engine with a capped number of ONNX threads (falls back to the library default on any error)."""
+    if TTS_THREADS > 0:
+        try:
+            import onnxruntime as ort
+            from kokoro_onnx.session import resolve_providers
+
+            options = ort.SessionOptions()
+            options.intra_op_num_threads = TTS_THREADS
+            options.inter_op_num_threads = 1
+            session = ort.InferenceSession(str(model_path), sess_options=options, providers=resolve_providers())
+            print(f"[voice] Kokoro runs with {TTS_THREADS} ONNX thread(s)", flush=True)
+            return _RealKokoro.from_session(session, str(voices_path))
+        except Exception as e:
+            print(f"[voice] could not limit Kokoro threads ({e}); using the default", flush=True)
+    return _RealKokoro(str(model_path), str(voices_path))
+
 
 class _SharedKokoro:
     """One Kokoro engine shared by every voice session. Synthesis runs one sentence at a time because the phonemizer
@@ -42,15 +71,37 @@ class _SharedKokoro:
         if self._speak_lock is None:
             self._speak_lock = asyncio.Lock()
         async with self._speak_lock:
-            async for item in self._engine.create_stream(*args, **kwargs):
-                yield item
+            started = time.perf_counter()
+            first_chunk_s = None
+            audio_s = 0.0
+            try:
+                async for item in self._engine.create_stream(*args, **kwargs):
+                    if TTS_TIMING:
+                        try:
+                            samples, sample_rate = item
+                            audio_s += len(samples) / float(sample_rate)
+                            if first_chunk_s is None:
+                                first_chunk_s = time.perf_counter() - started
+                        except Exception:
+                            pass  # timing is only a log line, never let it affect the audio
+                    yield item
+            finally:
+                if TTS_TIMING and audio_s > 0:
+                    took = time.perf_counter() - started
+                    ratio = took / audio_s
+                    flag = "  <-- SLOWER THAN PLAYBACK, the voice will break" if ratio > 1.0 else ""
+                    print(
+                        f"[voice] tts: {audio_s:.1f}s of speech made in {took:.1f}s "
+                        f"({ratio:.2f}x real time, first sound after {first_chunk_s or 0:.1f}s){flag}",
+                        flush=True,
+                    )
 
 
 def _shared_kokoro(model_path, voices_path):
     key = (str(model_path), str(voices_path))
     with _kokoro_lock:
         if key not in _kokoro_cache:
-            _kokoro_cache[key] = _SharedKokoro(_RealKokoro(*key))
+            _kokoro_cache[key] = _SharedKokoro(_build_kokoro_engine(*key))
         return _kokoro_cache[key]
 
 
